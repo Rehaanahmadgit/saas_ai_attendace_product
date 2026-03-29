@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, ClipboardCheck, BarChart3, BrainCircuit,
-  Users, ScrollText, Zap, LogOut, ChevronRight, Shield
+  Users, ScrollText, Zap, LogOut, ChevronRight, Shield, Settings
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,12 @@ const NAV_GROUPS = [
     items: [
       { icon: Users,          label: "Users",         to: "/users",      minRole: "admin" },
       { icon: ScrollText,     label: "Activity Logs", to: "/logs",       minRole: "admin" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { icon: Settings,       label: "Settings",      to: "/settings",   minRole: "user"  },
     ],
   },
 ];

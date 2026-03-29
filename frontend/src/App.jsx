@@ -10,6 +10,7 @@ import Analytics from "@/pages/Analytics";
 import Insights from "@/pages/Insights";
 import Users from "@/pages/Users";
 import Logs from "@/pages/Logs";
+import SettingsPage from "@/pages/settings/SettingsPage";
 import Layout from "@/components/layout/Layout";
 
 function RequireAuth({ children, minRole }) {
@@ -44,6 +45,7 @@ function AnimatedRoutes() {
           <Route path="insights"   element={<RequireAuth minRole="admin"><Insights /></RequireAuth>} />
           <Route path="users"      element={<RequireAuth minRole="admin"><Users /></RequireAuth>} />
           <Route path="logs"       element={<RequireAuth minRole="admin"><Logs /></RequireAuth>} />
+          <Route path="settings"   element={<SettingsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -25,9 +25,10 @@ http.interceptors.response.use(
 // ── API surface ────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  login:    (d)  => http.post("/auth/login", d),
-  register: (d)  => http.post("/auth/register", d),
-  me:       ()   => http.get("/auth/me"),
+  login:          (d)  => http.post("/auth/login", d),
+  register:       (d)  => http.post("/auth/register", d),
+  me:             ()   => http.get("/auth/me"),
+  changePassword: (d)  => http.post("/auth/change-password", d),
 };
 
 export const analyticsApi = {
@@ -39,12 +40,12 @@ export const analyticsApi = {
 
 export const attendanceApi = {
   mark:     (d)  => http.post("/attendance/mark", d),
-  list:     (p)  => http.get("/attendance", { params: p }),
+  list:     (p)  => http.get("/attendance/", { params: p }),
   today:    ()   => http.get("/attendance/today/summary"),
 };
 
 export const insightsApi = {
-  list:     ()    => http.get("/insights"),
+  list:     ()    => http.get("/insights/"),
   generate: ()    => http.post("/insights/generate"),
   markRead: (id)  => http.patch(`/insights/${id}/read`),
   summary:  ()    => http.get("/insights/summary"),
@@ -55,10 +56,16 @@ export const usersApi = {
   create: (d)       => http.post("/users", d),
   update: (id, d)   => http.put(`/users/${id}`, d),
   remove: (id)      => http.delete(`/users/${id}`),
+  get:    (id)      => http.get(`/users/${id}`),
 };
 
 export const logsApi = {
   list: (p) => http.get("/logs", { params: p }),
+};
+
+export const permissionsApi = {
+  me:    () => http.get("/permissions/me"),
+  roles: () => http.get("/permissions/roles"),
 };
 
 export const devApi = {

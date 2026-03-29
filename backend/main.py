@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
-from app.routers import auth, users, attendance, analytics, insights, logs, seed
+from app.routers import auth, users, attendance, analytics, insights, logs, seed, permissions
 
 
 @asynccontextmanager
@@ -39,8 +39,9 @@ app.include_router(users.router,      prefix="/api/users")
 app.include_router(attendance.router, prefix="/api/attendance")
 app.include_router(analytics.router,  prefix="/api/analytics")
 app.include_router(insights.router,   prefix="/api/insights")
-app.include_router(logs.router,       prefix="/api/logs")
-app.include_router(seed.router,       prefix="/api/dev")   # dev-only
+app.include_router(logs.router,        prefix="/api/logs")
+app.include_router(permissions.router,  prefix="/api/permissions")
+app.include_router(seed.router,         prefix="/api/dev")   # dev-only
 
 
 @app.get("/health")

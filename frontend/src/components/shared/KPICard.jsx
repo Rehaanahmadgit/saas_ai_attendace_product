@@ -3,11 +3,11 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const COLOR_MAP = {
-  violet:  { icon: "bg-violet-500/10 border-violet-500/20 text-violet-400",  glow: "shadow-violet-500/5" },
-  emerald: { icon: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400", glow: "shadow-emerald-500/5" },
-  blue:    { icon: "bg-blue-500/10   border-blue-500/20   text-blue-400",     glow: "shadow-blue-500/5" },
-  amber:   { icon: "bg-amber-500/10  border-amber-500/20  text-amber-400",    glow: "shadow-amber-500/5" },
-  red:     { icon: "bg-red-500/10    border-red-500/20    text-red-400",      glow: "shadow-red-500/5" },
+  violet:  { iconBg: "bg-violet-500/10",  iconBorder: "border-violet-500/20",  iconText: "text-violet-400",  glow: "shadow-violet-500/5" },
+  emerald: { iconBg: "bg-emerald-500/10", iconBorder: "border-emerald-500/20", iconText: "text-emerald-400", glow: "shadow-emerald-500/5" },
+  blue:    { iconBg: "bg-blue-500/10",    iconBorder: "border-blue-500/20",    iconText: "text-blue-400",    glow: "shadow-blue-500/5" },
+  amber:   { iconBg: "bg-amber-500/10",   iconBorder: "border-amber-500/20",   iconText: "text-amber-400",   glow: "shadow-amber-500/5" },
+  red:     { iconBg: "bg-red-500/10",     iconBorder: "border-red-500/20",     iconText: "text-red-400",     glow: "shadow-red-500/5" },
 };
 
 export default function KPICard({ title, value, change, subtitle, icon: Icon, color = "violet", loading, index = 0 }) {
@@ -45,8 +45,9 @@ export default function KPICard({ title, value, change, subtitle, icon: Icon, co
           )}
         </div>
 
-        <div className={cn("p-2.5 rounded-xl border flex-shrink-0 ml-4", colors.icon.replace("text-", "border-").split(" ")[1], colors.icon.split(" ")[0])}>
-          {Icon && <Icon className={cn("w-5 h-5", colors.icon.split(" ")[2])} />}
+        {/* Icon box — fixed explicit class keys instead of fragile string splitting */}
+        <div className={cn("p-2.5 rounded-xl border flex-shrink-0 ml-4", colors.iconBg, colors.iconBorder)}>
+          {Icon && <Icon className={cn("w-5 h-5", colors.iconText)} />}
         </div>
       </div>
     </motion.div>

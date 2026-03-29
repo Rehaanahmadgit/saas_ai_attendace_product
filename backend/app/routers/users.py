@@ -15,6 +15,7 @@ AdminOrAbove = Depends(require_min_role("admin"))
 
 
 @router.get("/", response_model=List[UserOut])
+@router.get("", response_model=List[UserOut])
 async def list_users(
     department: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
@@ -36,6 +37,7 @@ async def list_users(
 
 
 @router.post("/", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def create_user(
     data: UserCreate,
     current_user: OrgUser = AdminOrAbove,
@@ -45,9 +47,16 @@ async def create_user(
     if await db.scalar(select(OrgUser).where(OrgUser.email == email)):
         raise HTTPException(status_code=409, detail="Email already exists")
 
-    # Admins cannot create super_admin
-    if data.role == "super_admin" and current_user.role != "super_admin":
-        raise HTTPException(status_code=403, detail="Only super admins can create super admins")
+    # RBAC: enforce role assignment restrictions
+    ROLE_HIERARCHY = {"super_admin": 4, "admin": 3, "staff": 2, "user": 1}
+    requester_level = ROLE_HIERARCHY.get(current_user.role, 0)
+    target_level    = ROLE_HIERARCHY.get(data.role, 0)
+
+    if target_level >= requester_level:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Cannot assign role '{data.role}' — you can only assign roles below your own level",
+        )
 
     user = OrgUser(
         organization_id=current_user.organization_id,
@@ -64,6 +73,7 @@ async def create_user(
 
 
 @router.get("/{user_id}", response_model=UserOut)
+@router.get("/{user_id}/", response_model=UserOut)
 async def get_user(
     user_id: int,
     current_user: OrgUser = AdminOrAbove,
@@ -81,6 +91,7 @@ async def get_user(
 
 
 @router.put("/{user_id}", response_model=UserOut)
+@router.put("/{user_id}/", response_model=UserOut)
 async def update_user(
     user_id: int,
     data: UserUpdate,
@@ -96,6 +107,18 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # RBAC: enforce role update restrictions
+    ROLE_HIERARCHY = {"super_admin": 4, "admin": 3, "staff": 2, "user": 1}
+    requester_level = ROLE_HIERARCHY.get(current_user.role, 0)
+
+    if data.role:
+        target_level = ROLE_HIERARCHY.get(data.role, 0)
+        if target_level >= requester_level:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cannot assign role '{data.role}' — you can only assign roles below your own level",
+            )
+
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(user, field, value)
 
@@ -105,6 +128,7 @@ async def update_user(
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
     current_user: OrgUser = AdminOrAbove,
@@ -121,6 +145,11 @@ async def delete_user(
     )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Prevent non-super_admins from deleting super_admins
+    ROLE_HIERARCHY = {"super_admin": 4, "admin": 3, "staff": 2, "user": 1}
+    if ROLE_HIERARCHY.get(user.role, 0) >= ROLE_HIERARCHY.get(current_user.role, 0):
+        raise HTTPException(status_code=403, detail="Cannot delete a user with equal or higher role")
 
     await db.delete(user)
     await db.commit()

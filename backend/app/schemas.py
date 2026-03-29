@@ -31,6 +31,8 @@ class AuthUserOut(BaseModel):
     role: str
     department: Optional[str]
     organization_id: int
+    org_name: Optional[str] = None
+    org_plan: Optional[str] = None
     model_config = {"from_attributes": True}
 
 

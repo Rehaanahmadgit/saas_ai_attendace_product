@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Menu, Bell, RefreshCw } from "lucide-react";
+import { Menu, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { insightsApi } from "@/lib/api";
 
@@ -12,11 +12,13 @@ const PAGE_TITLES = {
   "/insights":   "AI Insights",
   "/users":      "User Management",
   "/logs":       "Activity Logs",
+  "/settings":   "Settings",
 };
 
 export default function Topbar({ onMenuToggle }) {
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, orgPlan } = useAuth();
   const [unread, setUnread] = useState(0);
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "short", year: "numeric", month: "short", day: "numeric",
@@ -29,6 +31,14 @@ export default function Topbar({ onMenuToggle }) {
         .catch(() => {});
     }
   }, [user, location.pathname]);
+
+  // Plan badge styles
+  const planStyles = {
+    pro:  "text-violet-400 bg-violet-500/10 border-violet-500/20",
+    free: "text-slate-400 bg-slate-500/10 border-slate-500/20",
+  };
+  const planLabel = orgPlan === "pro" ? "Pro Plan" : "Free Plan";
+  const planStyle = planStyles[orgPlan] || planStyles.free;
 
   return (
     <header className="h-14 flex items-center justify-between px-4 lg:px-6 border-b border-white/[0.06] bg-[#060B18]/80 backdrop-blur-xl sticky top-0 z-30">
@@ -51,9 +61,13 @@ export default function Topbar({ onMenuToggle }) {
 
       {/* Right: notifications + org plan */}
       <div className="flex items-center gap-2">
-        {/* Insight notifications */}
+        {/* Insight notifications — clicking navigates to /insights */}
         {["admin", "super_admin"].includes(user?.role) && (
-          <button className="relative p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors">
+          <button
+            className="relative p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
+            onClick={() => navigate("/insights")}
+            aria-label="View AI insights"
+          >
             <Bell className="w-4 h-4" />
             {unread > 0 && (
               <motion.span
@@ -67,10 +81,10 @@ export default function Topbar({ onMenuToggle }) {
           </button>
         )}
 
-        {/* Org plan badge */}
-        <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-          Pro Plan
+        {/* Org plan badge — real data from backend */}
+        <span className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-medium border px-2.5 py-1 rounded-full ${planStyle}`}>
+          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${orgPlan === "pro" ? "bg-violet-400" : "bg-slate-400"}`} />
+          {planLabel}
         </span>
 
         {/* User avatar */}
