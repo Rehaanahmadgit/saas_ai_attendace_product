@@ -33,17 +33,17 @@ export default function InsightCard({ insight, onMarkRead, index = 0 }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="text-sm font-semibold text-white leading-snug">{insight.title}</p>
+            <p className="text-sm font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>{insight.title}</p>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <Badge variant={insight.severity}>{insight.severity}</Badge>
               {!insight.is_read && <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse flex-shrink-0" />}
             </div>
           </div>
 
-          <p className="text-xs text-white/50 leading-relaxed">{insight.description}</p>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{insight.description}</p>
 
-          <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-white/[0.05]">
-            <span className="text-[11px] text-white/25">
+          <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t" style={{ borderColor: "var(--surface-border)" }}>
+            <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
               {format(new Date(insight.created_at), "MMM d, yyyy h:mm a")}
             </span>
             {!insight.is_read && onMarkRead && (

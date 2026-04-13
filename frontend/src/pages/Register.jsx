@@ -99,7 +99,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form);
-      navigate("/");
+      navigate("/onboarding");
     } catch (err) {
       const detail = err.response?.data?.detail;
       setServerError(
@@ -458,8 +458,10 @@ export default function Register() {
                     {/* Plan badge */}
                     <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                       <div>
-                        <p className="text-sm font-medium text-white">Free plan</p>
-                        <p className="text-xs text-white/30 mt-0.5">Up to 10 users • Core analytics</p>
+                        <p className="text-sm font-medium text-white">Free workspace</p>
+                        <p className="text-xs text-white/30 mt-0.5">
+                          You can upgrade anytime from settings.
+                        </p>
                       </div>
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         Free

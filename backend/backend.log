@@ -1,0 +1,52 @@
+nohup: ignoring input
+INFO:     Started server process [32733]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:42844 - "POST /api/auth/register HTTP/1.1" 201 Created
+INFO:     127.0.0.1:53682 - "GET /api/permissions/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53696 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53732 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53714 - "GET /api/analytics/departments?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53710 - "GET /api/analytics/trends?days=14 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53728 - "GET /api/attendance/today/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53704 - "GET /api/analytics/kpis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35072 - "GET /api/analytics/trends?days=14 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35076 - "GET /api/analytics/departments?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35084 - "GET /api/attendance/today/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35102 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35086 - "GET /api/analytics/kpis HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36716 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36728 - "GET /api/analytics/trends?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36744 - "GET /api/analytics/departments?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36756 - "GET /api/analytics/user-performance?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36772 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36774 - "GET /api/analytics/trends?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36776 - "GET /api/analytics/departments?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36790 - "GET /api/analytics/user-performance?days=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36792 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43212 - "GET /api/structure/departments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43196 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43220 - "GET /api/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43238 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43224 - "GET /api/structure/departments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43244 - "GET /api/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47096 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50622 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50634 - "GET /api/permissions/roles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50640 - "GET /api/permissions/roles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50642 - "GET /api/auth/org-settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50646 - "GET /api/auth/org-settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37736 - "PATCH /api/auth/org-settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46532 - "GET /api/permissions/roles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46540 - "GET /api/permissions/roles HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56904 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56906 - "GET /api/structure/departments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56910 - "GET /api/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56926 - "GET /api/structure/departments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56922 - "GET /api/insights/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56934 - "GET /api/users HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [32733]

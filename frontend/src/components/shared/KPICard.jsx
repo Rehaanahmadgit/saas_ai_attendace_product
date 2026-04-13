@@ -23,12 +23,12 @@ export default function KPICard({ title, value, change, subtitle, icon: Icon, co
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2">{title}</p>
+          <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>{title}</p>
 
           {loading ? (
             <div className="h-8 w-24 bg-white/[0.06] rounded-lg animate-pulse" />
           ) : (
-            <p className="text-3xl font-bold text-white tracking-tight">{value}</p>
+            <p className="text-3xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>{value}</p>
           )}
 
           {change !== undefined && !loading && (
@@ -40,7 +40,7 @@ export default function KPICard({ title, value, change, subtitle, icon: Icon, co
               <span className={cn("text-xs font-medium", isPositive ? "text-emerald-400" : "text-red-400")}>
                 {typeof change === "number" ? `${change > 0 ? "+" : ""}${change}%` : change}
               </span>
-              {subtitle && <span className="text-xs text-white/25">{subtitle}</span>}
+              {subtitle && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{subtitle}</span>}
             </div>
           )}
         </div>

@@ -5,8 +5,10 @@ import {
   Shield, User, Mail, Lock, Building2, ChevronRight, CheckCircle2,
   ArrowLeft, AlertTriangle,
 } from "lucide-react";
-import { usersApi } from "@/lib/api";
+import { usePermission } from "@/hooks/usePermission";
+import { usersApi, structureApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHierarchy } from "@/hooks/useHierarchy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +17,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
-const DEPTS = ["Engineering", "Sales", "HR", "Operations", "Marketing", "Finance", "Legal", "Product"];
+// Department list loaded from API (falls back to empty)
+
 
 const ROLE_META = {
   user:        { label: "User",        desc: "Can mark own attendance & view dashboard",           color: "text-slate-300  bg-slate-500/10  border-slate-500/20"  },
@@ -23,6 +26,25 @@ const ROLE_META = {
   admin:       { label: "Admin",       desc: "Full access except org-level super admin actions",   color: "text-blue-300   bg-blue-500/10   border-blue-500/20"    },
   super_admin: { label: "Super Admin", desc: "Unrestricted access including billing & org mgmt",   color: "text-violet-300 bg-violet-500/10 border-violet-500/20" },
 };
+
+// Helper to get readable role name for custom roles
+function getRoleLabel(role) {
+  if (!role) return "—";
+  return ROLE_META[role]?.label || role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function getRoleDesc(role) {
+  if (!role) return "";
+  return ROLE_META[role]?.desc || "Custom role";
+}
+
+function getRoleMeta(role) {
+  return ROLE_META[role] || { 
+    label: getRoleLabel(role), 
+    desc: "Custom role",
+    color: "text-gray-300 bg-gray-500/10 border-gray-500/20"
+  };
+}
 
 /* ─── STEP INDICATORS ──────────────────────────────────────────────────────── */
 function StepDot({ step, current }) {
@@ -38,7 +60,8 @@ function StepDot({ step, current }) {
 }
 
 /* ─── ADD USER MODAL — 3-STEP ONBOARDING ──────────────────────────────────── */
-function AddUserModal({ onSave, onClose, loading, assignableRoles }) {
+function AddUserModal({ onSave, onClose, loading, assignableRoles, depts = [] }) {
+  const { labels } = useHierarchy();
   const STEPS = [
     { title: "Personal Info",  desc: "Name and email address" },
     { title: "Role & Access",  desc: "Set permissions level" },
@@ -170,12 +193,12 @@ function AddUserModal({ onSave, onClose, loading, assignableRoles }) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Department <span className="text-white/20">(optional)</span></Label>
+                  <Label>{labels.department} <span className="text-white/20">(optional)</span></Label>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
                     <Select value={form.department} onChange={set("department")} className="pl-9">
-                      <option value="">Select department…</option>
-                      {DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
+                      <option value="">Select {labels.department.toLowerCase()}…</option>
+                      {depts.map(d => <option key={d} value={d}>{d}</option>)}
                     </Select>
                   </div>
                 </div>
@@ -196,7 +219,7 @@ function AddUserModal({ onSave, onClose, loading, assignableRoles }) {
                 </p>
                 <div className="space-y-2">
                   {availableRoles.map((role) => {
-                    const meta = ROLE_META[role] || ROLE_META.user;
+                    const meta = getRoleMeta(role);
                     return (
                       <button
                         key={role}
@@ -246,7 +269,7 @@ function AddUserModal({ onSave, onClose, loading, assignableRoles }) {
                   {[
                     { label: "Name", value: form.name },
                     { label: "Email", value: form.email },
-                    { label: "Role", value: ROLE_META[form.role]?.label || form.role },
+                    { label: "Role", value: getRoleLabel(form.role) },
                     { label: "Department", value: form.department || "—" },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-center justify-between">
@@ -281,7 +304,8 @@ function AddUserModal({ onSave, onClose, loading, assignableRoles }) {
 }
 
 /* ─── EDIT USER MODAL ─────────────────────────────────────────────────────── */
-function EditUserModal({ user, onSave, onClose, loading, assignableRoles }) {
+function EditUserModal({ user, onSave, onClose, loading, assignableRoles, depts = [] }) {
+  const { labels } = useHierarchy();
   const availableRoles = assignableRoles.length ? assignableRoles : ["user", "staff"];
   const [form, setForm] = useState({
     name: user.name,
@@ -328,17 +352,17 @@ function EditUserModal({ user, onSave, onClose, loading, assignableRoles }) {
             <Label>Role</Label>
             <Select value={form.role} onChange={set("role")}>
               {availableRoles.map(r => (
-                <option key={r} value={r}>{ROLE_META[r]?.label || r}</option>
+                <option key={r} value={r}>{getRoleLabel(r)}</option>
               ))}
             </Select>
-            {form.role && <p className="text-xs text-white/30 mt-1">{ROLE_META[form.role]?.desc}</p>}
+            {form.role && <p className="text-xs text-white/30 mt-1">{getRoleDesc(form.role)}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label>Department</Label>
+            <Label>{labels.department}</Label>
             <Select value={form.department} onChange={set("department")}>
-              <option value="">No department</option>
-              {DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
+              <option value="">No {labels.department.toLowerCase()}</option>
+              {depts.map(d => <option key={d} value={d}>{d}</option>)}
             </Select>
           </div>
 
@@ -376,17 +400,33 @@ function EditUserModal({ user, onSave, onClose, loading, assignableRoles }) {
 
 /* ─── MAIN USERS PAGE ──────────────────────────────────────────────────────── */
 export default function Users() {
-  const { user: me, isSuperAdmin, assignableRoles } = useAuth();
+  const { user: me, isSuperAdmin, assignableRoles, permissions } = useAuth();
+  const { can } = usePermission();
+  const { labels } = useHierarchy();
   const [users, setUsers]     = useState([]);
+  const [depts, setDepts]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const [modal, setModal]     = useState(null); // null | "add" | {user obj}
   const [search, setSearch]   = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [toast, setToast]     = useState({ type: "", msg: "" });
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null); // user id pending deletion
 
   // Roles available to filter by (all roles)
-  const ALL_ROLES = ["user", "staff", "admin", "super_admin"];
+  const ALL_ROLES = Object.keys(permissions?.role_hierarchy ?? {
+    user: 1, staff: 2, admin: 3, super_admin: 4,
+  });
+
+  // Fetch departments from real API
+  useEffect(() => {
+    structureApi.listDepartments().then(({ data }) => {
+      if (data && data.length > 0) {
+        setDepts(data.map(d => d.name));
+      }
+    }).catch(() => {}); // fallback to defaults
+  }, []);
+
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -419,13 +459,19 @@ export default function Users() {
   };
 
   const handleDelete = async (u) => {
-    if (!confirm(`Remove ${u.name} from your organization? This cannot be undone.`)) return;
+    setConfirmDeleteId(u.id);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
     try {
-      await usersApi.remove(u.id);
-      setUsers(prev => prev.filter(x => x.id !== u.id));
+      await usersApi.remove(confirmDeleteId);
+      setUsers(prev => prev.filter(x => x.id !== confirmDeleteId));
+      setConfirmDeleteId(null);
       notify("success", "User removed");
     } catch (err) {
       notify("error", err.response?.data?.detail || "Delete failed");
+      setConfirmDeleteId(null);
     }
   };
 
@@ -451,14 +497,16 @@ export default function Users() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white">User Management</h2>
-          <p className="text-sm text-white/40 mt-0.5">
+          <h2 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>User Management</h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
             {users.length} member{users.length !== 1 ? "s" : ""} in your organization
           </p>
         </div>
-        <Button variant="gradient" onClick={() => setModal("add")} className="gap-2">
-          <Plus className="w-4 h-4" /> Add User
-        </Button>
+        {can("users", "can_create") && (
+          <Button variant="gradient" onClick={() => setModal("add")} className="gap-2">
+            <Plus className="w-4 h-4" /> Add User
+          </Button>
+        )}
       </div>
 
       {/* Toast */}
@@ -494,7 +542,7 @@ export default function Users() {
             <Select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="w-40">
               <option value="">All roles</option>
               {ALL_ROLES.map(r => (
-                <option key={r} value={r}>{ROLE_META[r]?.label || r}</option>
+                <option key={r} value={r}>{getRoleLabel(r)}</option>
               ))}
             </Select>
           </div>
@@ -521,8 +569,8 @@ export default function Users() {
                       {getInitials(u.name)}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-white text-sm truncate">{u.name}</p>
-                      <p className="text-xs text-white/40 truncate max-w-[150px]">{u.email}</p>
+                      <p className="font-semibold text-sm truncate" style={{ color: "var(--text-primary)" }}>{u.name}</p>
+                      <p className="text-xs truncate max-w-[150px]" style={{ color: "var(--text-muted)" }}>{u.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -597,6 +645,7 @@ export default function Users() {
             onClose={() => setModal(null)}
             loading={saving}
             assignableRoles={assignableRoles}
+            depts={depts}
           />
         )}
         {modal !== null && modal !== "add" && (
@@ -606,7 +655,38 @@ export default function Users() {
             onClose={() => setModal(null)}
             loading={saving}
             assignableRoles={assignableRoles}
+            depts={depts}
           />
+        )}
+        {confirmDeleteId && (
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirmDeleteId(null)} />
+            <motion.div className="glass rounded-2xl p-6 w-full max-w-sm relative z-10"
+              initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-red-500/15 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Remove User</h3>
+                  <p className="text-xs text-white/40">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/70 mb-5">
+                Are you sure you want to remove <span className="font-semibold text-white">{users.find(u => u.id === confirmDeleteId)?.name}</span> from your organization?
+              </p>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmDeleteId(null)} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" className="flex-1" onClick={confirmDelete} disabled={saving}>
+                  {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Removing…</> : <><Trash2 className="w-4 h-4" />Remove</>}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>

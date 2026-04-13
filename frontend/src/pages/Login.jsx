@@ -211,19 +211,21 @@ export default function Login() {
               </Button>
             </form>
 
-            {/* Demo seed */}
-            <div className="mt-5 pt-5 border-t border-white/[0.06]">
-              <p className="text-xs text-white/30 text-center mb-3">Or try with demo data</p>
-              <Button variant="outline" size="default" className="w-full gap-2" onClick={handleSeed} disabled={seeding}>
-                {seeding
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Seeding demo…</>
-                  : <><Sparkles className="w-3.5 h-3.5" />Load Demo Data</>
-                }
-              </Button>
-              <p className="text-[10px] text-white/20 text-center mt-2">
-                Creates Acme Corp org with 10 users &amp; 60 days of data
-              </p>
-            </div>
+            {/* Demo seed — dev only */}
+            {import.meta.env.DEV && (
+              <div className="mt-5 pt-5 border-t border-white/[0.06]">
+                <p className="text-xs text-white/30 text-center mb-3">Or try with demo data</p>
+                <Button variant="outline" size="default" className="w-full gap-2" onClick={handleSeed} disabled={seeding}>
+                  {seeding
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Seeding demo…</>
+                    : <><Sparkles className="w-3.5 h-3.5" />Load Demo Data</>
+                  }
+                </Button>
+                <p className="text-[10px] text-white/20 text-center mt-2">
+                  Creates Acme Corp org with 10 users &amp; 60 days of data
+                </p>
+              </div>
+            )}
 
             <p className="text-xs text-white/30 text-center mt-5">
               Don't have an account?{" "}

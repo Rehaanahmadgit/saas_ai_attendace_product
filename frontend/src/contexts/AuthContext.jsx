@@ -1,75 +1,94 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { authApi, permissionsApi } from "@/lib/api";
+import { authApi, permissionsApiClient as permissionsApi, onboardingApi } from "@/lib/api";
+import { getMemToken, setMemToken, clearMemToken } from "@/lib/token";
 
 const AuthContext = createContext(null);
 
-const ROLE_HIERARCHY = { super_admin: 4, admin: 3, staff: 2, user: 1 };
-
 export function AuthProvider({ children }) {
-  const [user, setUser]         = useState(null);
-  const [permissions, setPerms] = useState(null);
-  const [loading, setLoading]   = useState(true);
+  const [user, setUser]               = useState(null);
+  const [permissions, setPerms]       = useState(null);
+  const [onboarding, setOnboarding]   = useState(null);
+  const [loading, setLoading]         = useState(true);
 
   const fetchPermissions = useCallback(async () => {
     try {
-      const { data } = await permissionsApi.me();
-      setPerms(data);
+      const [permRes, rolesRes] = await Promise.all([
+        permissionsApi.me(),
+        permissionsApi.roles(),
+      ]);
+      setPerms({ ...permRes.data, role_hierarchy: rolesRes.data });
     } catch {
       setPerms(null);
     }
   }, []);
 
+  const fetchOnboarding = useCallback(async (role) => {
+    // Only admins have onboarding requirements
+    if (!["admin", "super_admin"].includes(role)) {
+      setOnboarding({ completed: true });
+      return;
+    }
+    try {
+      const { data } = await onboardingApi.getStatus();
+      setOnboarding(data);
+    } catch {
+      setOnboarding({ completed: true }); // assume done on error to avoid blocking
+    }
+  }, []);
+
   // Restore session on mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) { setLoading(false); return; }
+    const refresh = localStorage.getItem("refresh_token");
+    if (!refresh) { setLoading(false); return; }
 
-    authApi.me()
+    authApi.refresh({ refresh_token: refresh })
+      .then(({ data: refreshData }) => {
+        setMemToken(refreshData.access_token);
+        localStorage.setItem("refresh_token", refreshData.refresh_token);
+        return authApi.me();
+      })
       .then(({ data }) => {
         setUser(data);
-        return permissionsApi.me();
+        return Promise.all([fetchPermissions(), fetchOnboarding(data.role)]);
       })
-      .then(({ data }) => setPerms(data))
       .catch(() => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        localStorage.removeItem("refresh_token");
+        clearMemToken();
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [fetchPermissions, fetchOnboarding]);
 
   const login = async (credentials) => {
     const { data } = await authApi.login(credentials);
-    localStorage.setItem("token", data.access_token);
-    localStorage.setItem("user", JSON.stringify(data.user));
+    setMemToken(data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
     setUser(data.user);
-    // Fetch permissions after login
     try {
-      const permRes = await permissionsApi.me();
-      setPerms(permRes.data);
+      await Promise.all([fetchPermissions(), fetchOnboarding(data.user.role)]);
     } catch { /* non-critical */ }
     return data;
   };
 
   const register = async (payload) => {
     const { data } = await authApi.register(payload);
-    localStorage.setItem("token", data.access_token);
-    localStorage.setItem("user", JSON.stringify(data.user));
+    setMemToken(data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
     setUser(data.user);
+    setOnboarding({ completed: false, progress_pct: 0 });
     try {
-      const permRes = await permissionsApi.me();
-      setPerms(permRes.data);
+      await fetchPermissions();
     } catch { /* non-critical */ }
     return data;
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearMemToken();
+    localStorage.removeItem("refresh_token");
     setUser(null);
     setPerms(null);
+    setOnboarding(null);
   };
 
-  // Refresh user data (e.g. after profile update)
   const refreshUser = async () => {
     try {
       const { data } = await authApi.me();
@@ -77,33 +96,46 @@ export function AuthProvider({ children }) {
     } catch { /* silently fail */ }
   };
 
+  const refreshOnboarding = async () => {
+    if (user?.role) await fetchOnboarding(user.role);
+  };
+
   // ── Role helpers ───────────────────────────────────────────────────────────
-  const isAdmin         = ["admin", "super_admin"].includes(user?.role);
-  const isStaff         = ["staff", "admin", "super_admin"].includes(user?.role);
-  const isSuperAdmin    = user?.role === "super_admin";
-  const orgPlan         = user?.org_plan ?? "free";
-  const orgName         = user?.org_name ?? "";
+  const isAdmin      = ["admin", "super_admin"].includes(user?.role);
+  const isStaff      = ["staff", "admin", "super_admin"].includes(user?.role);
+  const isSuperAdmin = user?.role === "super_admin";
+  const orgPlan      = user?.org_plan ?? "free";
+  const orgName      = user?.org_name ?? "";
 
-  // Get the roles that the current user can assign
   const assignableRoles = permissions?.assignable_roles ?? [];
+  const roleLevel       = permissions?.level ?? 0;
 
-  // Check if user has a specific permission
-  const hasPermission = (perm) => permissions?.permissions?.includes(perm) ?? false;
+  const hasPermission = (resource, action = "can_view") => {
+    const perms = permissions?.permissions;
+    if (!perms || typeof perms !== "object") return false;
+    return perms[resource]?.[action] === true;
+  };
 
-  // Check if user has minimum role level
   const hasMinRole = (minRole) => {
-    const userLevel = ROLE_HIERARCHY[user?.role] || 0;
-    const minLevel  = ROLE_HIERARCHY[minRole] || 0;
+    if (!permissions) return false;
+    const roleHierarchyMap = permissions?.role_hierarchy ?? {};
+    const userLevel = roleHierarchyMap[user?.role] ?? permissions?.level ?? 0;
+    const minLevel  = roleHierarchyMap[minRole] ?? 0;
     return userLevel >= minLevel;
   };
 
+  // isOnboarded: true if the org setup wizard is completed
+  // Uses the dedicated onboarding status — NOT user.settings.onboarded (which doesn't exist)
+  const isOnboarded = onboarding?.completed === true;
+
   return (
     <AuthContext.Provider value={{
-      user, loading, permissions,
-      login, register, logout, refreshUser,
+      user, loading, permissions, onboarding,
+      login, register, logout, refreshUser, refreshOnboarding,
       isAdmin, isStaff, isSuperAdmin,
       orgPlan, orgName,
       assignableRoles, hasPermission, hasMinRole,
+      roleLevel, isOnboarded,
     }}>
       {children}
     </AuthContext.Provider>

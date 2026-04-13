@@ -34,7 +34,10 @@ const ChartTooltip = ({ active, payload }) => {
   );
 };
 
+import { useHierarchy } from "@/hooks/useHierarchy";
+
 export default function Analytics() {
+  const { labels } = useHierarchy();
   const [days, setDays]         = useState(30);
   const [trends, setTrends]     = useState([]);
   const [depts, setDepts]       = useState([]);
@@ -42,7 +45,7 @@ export default function Analytics() {
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
+    const loadData = async () => {
       setLoading(true);
       try {
         const [t, d, p] = await Promise.all([
@@ -56,7 +59,7 @@ export default function Analytics() {
       } catch { /* interceptor handles */ }
       finally { setLoading(false); }
     };
-    fetch();
+    loadData();
   }, [days]);
 
   // Aggregate status counts for pie chart
@@ -83,8 +86,8 @@ export default function Analytics() {
       {/* Header + period selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white">Analytics</h2>
-          <p className="text-sm text-white/40">Attendance metrics &amp; trends</p>
+          <h2 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>Analytics</h2>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Attendance metrics &amp; trends</p>
         </div>
         <div className="flex gap-2">
           {PERIODS.map(p => (
@@ -113,7 +116,7 @@ export default function Analytics() {
       {/* Dept + Pie */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card>
-          <CardHeader><CardTitle>Department Breakdown</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{labels.department} Breakdown</CardTitle></CardHeader>
           <CardContent>
             {loading ? <Skeleton h={220} /> : <DepartmentChart data={depts} height={220} />}
           </CardContent>
@@ -157,7 +160,7 @@ export default function Analytics() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.06]">
-                {["#","Employee","Department","Present","Late","Absent","Rate"].map(h => (
+                {["#", "Employee", labels.department, "Present", "Late", "Absent", "Rate"].map(h => (
                   <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-white/40 uppercase tracking-wider">
                     {h}
                   </th>

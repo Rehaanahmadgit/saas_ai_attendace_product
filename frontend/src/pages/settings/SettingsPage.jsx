@@ -1,25 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings, User, Bell, Shield, Zap, ChevronRight,
   CheckCircle2, AlertCircle, Loader2, Lock, Eye, EyeOff,
+  Sun, Moon, Monitor,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { authApi } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
+import { authApi, permissionsApiClient as permissionsApi } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Building2, Globe } from "lucide-react";
 
 const SECTIONS = [
-  { id: "profile",  label: "Profile",       icon: User,   desc: "Personal info & preferences" },
-  { id: "notify",   label: "Notifications", icon: Bell,   desc: "Alert and digest settings" },
-  { id: "security", label: "Security",      icon: Shield, desc: "Password & access control" },
-  { id: "api",      label: "API & MCP",     icon: Zap,    desc: "Developer keys and endpoints" },
+  { id: "profile",  label: "Profile",         icon: User,      desc: "Personal info & preferences" },
+  { id: "org",      label: "Organization",     icon: Building2, desc: "Hierarchy names & org type" },
+  { id: "roles",    label: "Roles",            icon: Shield,    desc: "Role/hierarchy permissions" },
+  { id: "notify",   label: "Notifications",    icon: Bell,      desc: "Alert and digest settings" },
+  { id: "security", label: "Security",         icon: Lock,      desc: "Password & access control" },
+  { id: "appearance",label: "Appearance",      icon: Sun,       desc: "Theme & display settings" },
+  { id: "api",      label: "API & MCP",        icon: Zap,       desc: "Developer keys and endpoints" },
 ];
 
-/* ─── PROFILE SECTION ──────────────────────────────────────────────────────── */
 function ProfileSection({ user }) {
   const [saved, setSaved] = useState(false);
   const submit = (e) => {
@@ -86,6 +91,159 @@ function ProfileSection({ user }) {
         </AnimatePresence>
       </div>
     </form>
+  );
+}
+
+/* ─── ORGANIZATION SECTION — Custom hierarchy names ────────────────────────── */
+const DEFAULT_HIERARCHY_NAMES = {
+  department: "Department",
+  class:      "Class / Group",
+  section:    "Section",
+  subject:    "Subject",
+};
+
+const ORG_TYPES = [
+  { value: "school",  label: "School",  desc: "Classes, Sections, Subjects" },
+  { value: "office",  label: "Office",  desc: "Teams, Sub-teams, Projects" },
+  { value: "college", label: "College", desc: "Departments, Batches, Courses" },
+];
+
+function OrgSection() {
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const [form, setForm] = useState({ ...DEFAULT_HIERARCHY_NAMES });
+  const [orgType, setOrgType] = useState("office");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    authApi.getOrgSettings()
+      .then(({ data }) => {
+        const s = data.settings || {};
+        setOrgType(data.org_type || "office");
+        setForm({
+          department: s.label_department || DEFAULT_HIERARCHY_NAMES.department,
+          class:      s.label_class      || DEFAULT_HIERARCHY_NAMES.class,
+          section:    s.label_section    || DEFAULT_HIERARCHY_NAMES.section,
+          subject:    s.label_subject    || DEFAULT_HIERARCHY_NAMES.subject,
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await authApi.updateOrgSettings({
+        org_type: orgType,
+        settings: {
+          label_department: form.department,
+          label_class:      form.class,
+          label_section:    form.section,
+          label_subject:    form.subject,
+        },
+      });
+      setSuccess("Organization settings saved!");
+      setTimeout(() => setSuccess(""), 4000);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isAdmin && !isSuperAdmin) {
+    return <div className="p-4 rounded-xl border border-white/[0.08] text-sm text-white/40">Only admins can configure organization settings.</div>;
+  }
+
+  const FIELDS = [
+    { key: "department", label: "Level 1 — Department label",  placeholder: "e.g. Department, Faculty, Team" },
+    { key: "class",      label: "Level 2 — Class / Group label", placeholder: "e.g. Class, Grade, Project" },
+    { key: "section",    label: "Level 3 — Section label",      placeholder: "e.g. Section, Batch, Sub-team" },
+    { key: "subject",    label: "Level 4 — Subject label",      placeholder: "e.g. Subject, Course, Module" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="p-4 glass rounded-xl border-l-2 border-violet-500/40">
+        <p className="text-sm text-violet-300 font-medium flex items-center gap-2">
+          <Globe className="w-4 h-4" /> Custom Hierarchy Names
+        </p>
+        <p className="text-xs text-white/40 mt-1">
+          Rename the hierarchy levels to match your organization's terminology. These names appear throughout the app.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-white/40">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading settings…
+        </div>
+      ) : (
+        <form onSubmit={handleSave} className="space-y-4">
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/[0.08] text-sm text-red-400"
+              >
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+              </motion.div>
+            )}
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.08] text-sm text-emerald-400"
+              >
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />{success}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {FIELDS.map(({ key, label, placeholder }) => (
+              <div key={key} className="space-y-1.5">
+                <Label>{label}</Label>
+                <Input
+                  value={form[key]}
+                  onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2 space-y-2">
+            <Label>Organization type</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {ORG_TYPES.map(t => (
+                <div
+                  key={t.value}
+                  onClick={() => setOrgType(t.value)}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                    orgType === t.value
+                      ? "border-violet-500/40 bg-violet-500/10 ring-1 ring-violet-500/30"
+                      : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-white">{t.label}</p>
+                  <p className="text-[11px] text-white/40 mt-0.5">{t.desc}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-white/25">Org type affects default feature labelling (read-only via API, update via settings above).</p>
+          </div>
+
+          <Button type="submit" variant="gradient" disabled={saving}>
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Save hierarchy names"}
+          </Button>
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -242,12 +400,132 @@ function SecuritySection() {
   );
 }
 
+/* ─── ROLES MANAGEMENT SECTION ────────────────────────────────────────────────────── */
+function RoleSection() {
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ name: "", label: "", level: 1, description: "" });
+  const [saving, setSaving] = useState(false);
+
+  const fetchRoles = async () => {
+    setLoading(true);
+    try {
+      const { data } = await permissionsApi.roles();
+      setRoles(data.roles || []);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to load roles");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin || isSuperAdmin) fetchRoles(); else setLoading(false);
+  }, [isAdmin, isSuperAdmin]);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!form.name.trim()) { setError("Role name is required"); return; }
+    setSaving(true);
+    try {
+      await permissionsApi.createRole({
+        ...form,
+        name: form.name.trim().toLowerCase().replace(/\s+/g, "_"),
+      });
+      setForm({ name: "", label: "", level: 1, description: "" });
+      fetchRoles();
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to create role");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteRole = async (role) => {
+    if (!confirm(`Delete role '${role.name}'?`)) return;
+    try {
+      await permissionsApi.deleteRole(role.id);
+      setRoles((prev) => prev.filter((r) => r.id !== role.id));
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to delete role");
+    }
+  };
+
+  if (!isAdmin && !isSuperAdmin) {
+    return <div className="p-4 rounded-xl border border-white/[0.08] text-sm text-white/40">Only admins can view role management.</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {error && <div className="p-3 rounded-lg text-sm text-red-300 bg-red-500/10 border border-red-500/20">{error}</div>}
+      <form className="grid grid-cols-1 sm:grid-cols-4 gap-3" onSubmit={handleCreate}>
+        <input
+          value={form.name}
+          onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+          placeholder="Name (staff)"
+          className="bg-white/5 border border-white/[0.12] rounded-md text-sm text-white p-2"
+        />
+        <input
+          value={form.label}
+          onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))}
+          placeholder="Label (Staff)"
+          className="bg-white/5 border border-white/[0.12] rounded-md text-sm text-white p-2"
+        />
+        <input
+          value={form.level}
+          type="number"
+          min={1}
+          max={99}
+          onChange={(e) => setForm((p) => ({ ...p, level: Number(e.target.value) }))}
+          placeholder="Level"
+          className="bg-white/5 border border-white/[0.12] rounded-md text-sm text-white p-2"
+        />
+        <button className="bg-violet-500/70 hover:bg-violet-500 text-white rounded-md p-2 text-sm" disabled={saving}>
+          {saving ? "Saving…" : "Create Role"}
+        </button>
+      </form>
+      <div className="space-y-2">
+        {loading ? (
+          <p className="text-sm text-white/40">Loading roles…</p>
+        ) : roles.length === 0 ? (
+          <p className="text-sm text-white/40">No roles yet.</p>
+        ) : (
+          roles.map((role) => (
+            <div key={role.id} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.08] bg-white/5">
+              <div>
+                <p className="text-sm text-white font-semibold">{role.label || role.name}</p>
+                <p className="text-xs text-white/40">{role.name} - Level {role.level}</p>
+              </div>
+              <button className="text-red-300 hover:text-red-100 text-xs" onClick={() => deleteRole(role)}>
+                Delete
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── API & MCP SECTION ────────────────────────────────────────────────────── */
 function ApiSection() {
   const endpoints = [
     { method: "GET",   path: "/api/auth/me",                    desc: "Current authenticated user + org plan" },
     { method: "GET",   path: "/api/permissions/me",             desc: "RBAC permissions for current user" },
-    { method: "GET",   path: "/api/permissions/roles",          desc: "Full role hierarchy definition" },
+    { method: "GET",   path: "/api/permissions/roles",          desc: "List roles by organization" },
+    { method: "POST",  path: "/api/permissions/roles",          desc: "Create custom role" },
+    { method: "PUT",   path: "/api/permissions/roles/{id}",     desc: "Update role metadata/level" },
+    { method: "DELETE",path: "/api/permissions/roles/{id}",     desc: "Delete custom role" },
+    { method: "GET",   path: "/api/permissions/role-permissions", desc: "List granular role resource permission rules" },
+    { method: "POST",  path: "/api/permissions/role-permissions", desc: "Create role permission rule" },
+    { method: "PUT",   path: "/api/permissions/role-permissions/{id}", desc: "Update role permission rule" },
+    { method: "DELETE",path: "/api/permissions/role-permissions/{id}", desc: "Delete role permission rule" },
     { method: "GET",   path: "/api/analytics/kpis",             desc: "KPI metrics for dashboard" },
     { method: "GET",   path: "/api/analytics/trends",           desc: "Attendance trends (supports ?days=)" },
     { method: "GET",   path: "/api/analytics/departments",      desc: "Department breakdown" },
@@ -295,17 +573,66 @@ function ApiSection() {
   );
 }
 
+/* ─── APPEARANCE SECTION ────────────────────────────────────────────────────── */
+function AppearanceSection() {
+  const { theme, toggleTheme } = useTheme();
+
+  const themes = [
+    { id: "dark",  label: "Dark",  desc: "Easy on the eyes, great for night use", icon: Moon },
+    { id: "light", label: "Light", desc: "Clean and bright for daytime work",     icon: Sun  },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Color Theme</p>
+        <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
+          Choose how Nexus looks. Your preference is saved in your browser.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {themes.map(t => {
+            const Icon = t.icon;
+            const isActive = theme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => !isActive && toggleTheme()}
+                className="p-4 rounded-xl border text-left transition-all"
+                style={{
+                  borderColor: isActive ? "rgba(139,92,246,0.4)" : "var(--surface-border)",
+                  backgroundColor: isActive ? "var(--nav-active-bg)" : "var(--surface-card)",
+                  boxShadow: isActive ? "0 0 0 1px rgba(139,92,246,0.3)" : "none",
+                }}
+              >
+                <Icon className={`w-5 h-5 mb-2 ${isActive ? "text-violet-400" : ""}`}
+                  style={{ color: isActive ? undefined : "var(--text-muted)" }}
+                />
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{t.label}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{t.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── MAIN SETTINGS PAGE ────────────────────────────────────────────────────── */
 export default function SettingsPage() {
   const { user } = useAuth();
   const [active, setActive] = useState("profile");
 
   const CONTENT = {
-    profile:  <ProfileSection user={user} />,
-    notify:   <NotifySection />,
-    security: <SecuritySection />,
-    api:      <ApiSection />,
+    profile:    <ProfileSection user={user} />,
+    org:        <OrgSection />,
+    roles:      <RoleSection />,
+    notify:     <NotifySection />,
+    security:   <SecuritySection />,
+    appearance: <AppearanceSection />,
+    api:        <ApiSection />,
   };
+
 
   return (
     <motion.div
@@ -313,11 +640,13 @@ export default function SettingsPage() {
       className="space-y-5"
     >
       <div>
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Settings className="w-5 h-5 text-white/40" />
+        <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+          <Settings className="w-5 h-5" style={{ color: "var(--text-muted)" }} />
           Settings
         </h2>
-        <p className="text-sm text-white/40 mt-1">Manage your account and workspace preferences</p>
+        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+          Manage your account and workspace preferences
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
@@ -326,22 +655,24 @@ export default function SettingsPage() {
           <nav className="space-y-0.5">
             {SECTIONS.map(s => {
               const Icon = s.icon;
+              const isActive = active === s.id;
               return (
                 <button
                   key={s.id}
                   onClick={() => setActive(s.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer ${
-                    active === s.id
-                      ? "bg-violet-500/10 border border-violet-500/20 text-white"
-                      : "text-white/50 hover:text-white hover:bg-white/[0.05] border border-transparent"
-                  }`}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all cursor-pointer border"
+                  style={{
+                    color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                    backgroundColor: isActive ? "var(--nav-active-bg)" : "transparent",
+                    borderColor: isActive ? "var(--nav-active-border)" : "transparent",
+                  }}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   <div className="flex-1 text-left min-w-0">
                     <p className="font-medium truncate">{s.label}</p>
-                    <p className="text-[11px] text-white/30 truncate hidden sm:block">{s.desc}</p>
+                    <p className="text-[11px] truncate hidden sm:block" style={{ color: "var(--text-muted)" }}>{s.desc}</p>
                   </div>
-                  {active === s.id && <ChevronRight className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
+                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
                 </button>
               );
             })}

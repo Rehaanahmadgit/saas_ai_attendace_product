@@ -25,13 +25,15 @@ export default function Insights() {
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const [{ data: d }, { data: s }] = await Promise.all([
-        insightsApi.list(),
-        insightsApi.summary(),
-      ]);
+      const { data: d } = await insightsApi.list();
       setData(d);
-      setNlSummary(s);
     } catch { /* handled */ }
+    
+    try {
+      const { data: s } = await insightsApi.summary();
+      setNlSummary(s);
+    } catch { /* non-critical; summary generation may timeout */ }
+    
     finally { setLoading(false); }
   };
 

@@ -20,7 +20,7 @@ function timeGreeting() {
 }
 
 export default function Dashboard() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isStaff } = useAuth();
 
   const [kpis, setKpis]         = useState(null);
   const [trends, setTrends]     = useState([]);
@@ -33,12 +33,21 @@ export default function Dashboard() {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [kpiRes, trendRes, deptRes, todayRes] = await Promise.all([
+        const baseRequests = [
           analyticsApi.kpis(),
-          analyticsApi.trends({ days: 14 }),
-          analyticsApi.departments({ days: 30 }),
           attendanceApi.today(),
-        ]);
+        ];
+        if (isStaff || isAdmin) {
+          baseRequests.push(
+            analyticsApi.trends({ days: 14 }),
+            analyticsApi.departments({ days: 30 }),
+          );
+        }
+        const results = await Promise.all(baseRequests);
+        const [kpiRes, todayRes] = results;
+        const trendRes   = (isStaff || isAdmin) ? results[2] : { data: { trends: [] } };
+        const deptRes    = (isStaff || isAdmin) ? results[3] : { data: [] };
+
         setKpis(kpiRes.data);
         setTrends(trendRes.data.trends || []);
         setDepts(deptRes.data || []);
@@ -55,7 +64,7 @@ export default function Dashboard() {
       }
     };
     fetchAll();
-  }, [isAdmin]);
+  }, [isAdmin, isStaff]);
 
   const KPI_CARDS = [
     { title: "Total Users",     value: kpis?.total_users    ?? "—", change: kpis?.monthly_change, subtitle: "vs last month", icon: Users,       color: "violet", index: 0 },
@@ -74,10 +83,10 @@ export default function Dashboard() {
     >
       {/* Welcome */}
       <div>
-        <h2 className="text-2xl font-bold text-white">
-          {timeGreeting()}, {user?.name?.split(" ")[0]} 👋
+        <h2 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+          {timeGreeting()}, {user?.name?.split(" ")[0]}
         </h2>
-        <p className="text-white/40 text-sm mt-1">
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
           {format(new Date(), "EEEE, MMMM d yyyy")} · Here's your team overview
         </p>
       </div>
@@ -127,7 +136,7 @@ export default function Dashboard() {
                 ? [1,2,3].map(i => <div key={i} className="h-16 bg-white/[0.03] rounded-xl animate-pulse" />)
                 : insights.length
                   ? insights.map((ins, i) => <InsightCard key={ins.id} insight={ins} index={i} />)
-                  : <div className="text-center py-8 text-white/30 text-sm">No unread insights</div>
+                  : <div className="text-center py-8 text-sm" style={{ color: "var(--text-muted)" }}>No unread insights</div>
               }
             </CardContent>
           </Card>
@@ -164,21 +173,21 @@ export default function Dashboard() {
               : (
                 <div className="space-y-3">
                   {[
-                    { label: "Total Users",    value: todaySummary.total_users,  color: "text-white" },
-                    { label: "Present",        value: todaySummary.present,      color: "text-emerald-400" },
-                    { label: "Late",           value: todaySummary.late,         color: "text-amber-400" },
-                    { label: "Absent",         value: todaySummary.absent,       color: "text-red-400" },
-                    { label: "Not Marked",     value: todaySummary.not_marked,   color: "text-white/40" },
+                    { label: "Total Users",    value: todaySummary.total_users,  color: "var(--text-primary)" },
+                    { label: "Present",        value: todaySummary.present,      color: "#34d399" },
+                    { label: "Late",           value: todaySummary.late,         color: "#fbbf24" },
+                    { label: "Absent",         value: todaySummary.absent,       color: "#f87171" },
+                    { label: "Not Marked",     value: todaySummary.not_marked,   color: "var(--text-muted)" },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
-                      <span className="text-sm text-white/50">{label}</span>
-                      <span className={`text-sm font-semibold ${color}`}>{value}</span>
+                      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{label}</span>
+                      <span className="text-sm font-semibold" style={{ color }}>{value}</span>
                     </div>
                   ))}
                   <div className="pt-2">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-white/40">Attendance Rate</span>
-                      <span className="text-xs font-semibold text-white">{todaySummary.attendance_rate}%</span>
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>Attendance Rate</span>
+                      <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{todaySummary.attendance_rate}%</span>
                     </div>
                     <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
                       <motion.div
