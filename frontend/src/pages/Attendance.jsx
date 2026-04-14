@@ -29,6 +29,18 @@ const STATUS_ACTIVE_CLASSES = {
   absent:   "bg-red-500/20    text-red-400     border-red-500/40",
   half_day: "bg-blue-500/20   text-blue-400    border-blue-500/40",
 };
+
+function formatApiError(detail) {
+  if (!detail && detail !== 0) return null;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map(err => err?.msg || err?.detail || JSON.stringify(err)).join("; ");
+  }
+  if (typeof detail === "object") {
+    return detail.message || detail.detail || JSON.stringify(detail);
+  }
+  return String(detail);
+}
 // ── Self-mark modal (for students / basic users) ──────────────────────────────
 function SelfMarkModal({ onMark, onClose, loading }) {
   const { user } = useAuth();
@@ -228,7 +240,8 @@ export default function Attendance() {
       fetchRecords();
       fetchSummary();
     } catch (err) {
-      notify("error", err.response?.data?.detail || "Failed to mark attendance");
+      const message = formatApiError(err.response?.data?.detail) || "Failed to mark attendance";
+      notify("error", message);
     } finally {
       setMarking(false);
     }
@@ -359,8 +372,8 @@ export default function Attendance() {
               className="w-40"
             >
               <option value="">All sections</option>
-              {Object.entries(sectionMap).map(([id, label]) => (
-                <option key={id} value={id}>{label}</option>
+              {Object.entries(sectionMap).filter(([id]) => id && id !== "undefined").map(([id, label]) => (
+                <option key={id} value={id}>{label || `Section ${id}`}</option>
               ))}
             </Select>
 

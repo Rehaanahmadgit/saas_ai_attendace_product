@@ -23,7 +23,7 @@ async def list_students(
     department_id: Optional[int] = Query(None),
     is_active: Optional[bool] = Query(True),
     search: Optional[str] = Query(None),
-    current_user: OrgUser = AnyRole,
+    current_user: OrgUser = Depends(require_permission("students", "can_view")),
     db: AsyncSession = Depends(get_db),
 ):
     """

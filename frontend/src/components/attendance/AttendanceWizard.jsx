@@ -20,10 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
 const STATUS_CONFIG = {
-  present:  { label: "P",  color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", full: "Present" },
-  late:     { label: "L",  color: "bg-amber-500/20  text-amber-400  border-amber-500/30",  full: "Late"    },
-  absent:   { label: "A",  color: "bg-red-500/20    text-red-400    border-red-500/30",    full: "Absent"  },
-  half_day: { label: "H",  color: "bg-blue-500/20   text-blue-400   border-blue-500/30",   full: "Half Day"},
+  present: { label: "P", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", full: "Present" },
+  late: { label: "L", color: "bg-amber-500/20  text-amber-400  border-amber-500/30", full: "Late" },
+  absent: { label: "A", color: "bg-red-500/20    text-red-400    border-red-500/30", full: "Absent" },
+  half_day: { label: "H", color: "bg-blue-500/20   text-blue-400   border-blue-500/30", full: "Half Day" },
 };
 
 import { useHierarchy } from "@/hooks/useHierarchy";
@@ -31,38 +31,40 @@ import { useHierarchy } from "@/hooks/useHierarchy";
 export default function AttendanceWizard({ onComplete, onClose }) {
   const { user, isStaff } = useAuth();
   const { labels } = useHierarchy();
+  // True only for the "staff" role — admins/super_admins can see all sections
+  const isStaffOnly = user?.role === "staff";
 
   const STEPS = [
-    { id: "dept",    label: labels.department, icon: Building2     },
-    { id: "class",   label: labels.class,      icon: GraduationCap },
-    { id: "section", label: labels.section,    icon: BookOpen      },
-    { id: "mark",    label: "Mark",            icon: Users         },
+    { id: "dept", label: labels.department, icon: Building2 },
+    { id: "class", label: labels.class, icon: GraduationCap },
+    { id: "section", label: labels.section, icon: BookOpen },
+    { id: "mark", label: "Mark", icon: Users },
   ];
 
-  const [step,       setStep]       = useState(0);
-  const [depts,      setDepts]      = useState([]);
-  const [classes,    setClasses]    = useState([]);
-  const [sections,   setSections]   = useState([]);
-  const [subjects,   setSubjects]   = useState([]);
-  const [students,   setStudents]   = useState([]);  // [{student_id, name, roll_no, attendance}]
+  const [step, setStep] = useState(0);
+  const [depts, setDepts] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [students, setStudents] = useState([]);  // [{student_id, name, roll_no, attendance}]
 
-  const [selDept,    setSelDept]    = useState(null);
-  const [selClass,   setSelClass]   = useState(null);
+  const [selDept, setSelDept] = useState(null);
+  const [selClass, setSelClass] = useState(null);
   const [selSection, setSelSection] = useState(null);
   const [selSubject, setSelSubject] = useState(null);
-  const [markDate,   setMarkDate]   = useState(format(new Date(), "yyyy-MM-dd"));
+  const [markDate, setMarkDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   // attendance state: { [user_id]: status }
   const [attendance, setAttendance] = useState({});
-  const [loading,    setLoading]    = useState(false);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState("");
+  const [error, setError] = useState("");
 
   // Step 0: load departments
   useEffect(() => {
     structureApi.listDepartments({ is_active: true })
       .then(({ data }) => setDepts(data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Step 1: load classes when dept selected
@@ -76,14 +78,17 @@ export default function AttendanceWizard({ onComplete, onClose }) {
   }, [selDept]);
 
   // Step 2: load sections when class selected
+  // Staff users only see sections they are assigned to (my_sections=true)
   useEffect(() => {
     if (!selClass) return;
     setLoading(true);
     setSections([]); setSelSection(null);
-    structureApi.listSections({ class_id: selClass.id, is_active: true })
+    const params = { class_id: selClass.id, is_active: true };
+    if (isStaffOnly) params.my_sections = true;
+    structureApi.listSections(params)
       .then(({ data }) => setSections(data))
       .finally(() => setLoading(false));
-  }, [selClass]);
+  }, [selClass, isStaffOnly]);
 
   // Step 2 also: load subjects for the department
   useEffect(() => {
@@ -103,14 +108,15 @@ export default function AttendanceWizard({ onComplete, onClose }) {
     if (!selSection) return;
     setLoading(true);
     try {
-      const params = { date: markDate };
+      const params = {};
+      if (markDate) params.date = markDate;
       if (selSubject) params.subject_id = selSubject.id;
       const { data } = await attendanceApi.sectionStudents(selSection.id, params);
       setStudents(data);
       // Pre-fill already marked attendance
       const pre = {};
       data.forEach(s => {
-        if (s.attendance?.marked) pre[s.user_id] = s.attendance.status;
+        if (s.attendance?.marked) pre[s.user_id] = s.attendance.status || "present";
         else pre[s.user_id] = "present"; // default
       });
       setAttendance(pre);
@@ -138,27 +144,40 @@ export default function AttendanceWizard({ onComplete, onClose }) {
     try {
       const records = students.map(s => ({
         user_id: s.user_id,
-        status:  attendance[s.user_id] || "absent",
-        notes:   "",
+        status: attendance[s.user_id] || "absent",
+        notes: null,
       }));
       await attendanceApi.bulkMark({
         section_id: selSection.id,
-        date:       markDate,
-        subject_id: selSubject?.id || null,
+        date: markDate || null,
+        subject_id: selSubject?.id ?? null,
         records,
       });
       onComplete?.();
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to submit attendance");
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if (status === 409) {
+        setError("Attendance already recorded for one or more students today. Reload and try again.");
+      } else if (status === 403) {
+        setError(typeof detail === "string" ? detail : "You don't have permission to mark attendance for this section.");
+      } else if (status === 422) {
+        // Pydantic validation error — show a friendly fallback instead of raw field errors
+        setError("Submission failed due to a validation error. Please refresh and try again.");
+      } else if (typeof detail === "string") {
+        setError(detail);
+      } else {
+        setError("Failed to submit attendance. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
-  const markedCount   = Object.values(attendance).filter(s => s !== null).length;
-  const presentCount  = Object.values(attendance).filter(s => s === "present").length;
-  const absentCount   = Object.values(attendance).filter(s => s === "absent").length;
-  const lateCount     = Object.values(attendance).filter(s => s === "late").length;
+  const markedCount = Object.values(attendance).filter(s => s !== null).length;
+  const presentCount = Object.values(attendance).filter(s => s === "present").length;
+  const absentCount = Object.values(attendance).filter(s => s === "absent").length;
+  const lateCount = Object.values(attendance).filter(s => s === "late").length;
 
   return (
     <div
@@ -183,7 +202,7 @@ export default function AttendanceWizard({ onComplete, onClose }) {
       {/* Step indicator */}
       <div className="flex items-center gap-1 mb-6">
         {STEPS.map((s, i) => {
-          const done    = i < step;
+          const done = i < step;
           const current = i === step;
           const Icon = s.icon;
           return (
@@ -192,13 +211,13 @@ export default function AttendanceWizard({ onComplete, onClose }) {
                 onClick={() => done && setStep(i)}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer
                   ${current ? "bg-violet-500/20 text-violet-300 border border-violet-500/30" :
-                    done    ? "text-white/60 hover:text-white" :
-                              "text-white/25 cursor-not-allowed"}`}
+                    done ? "text-white/60 hover:text-white" :
+                      "text-white/25 cursor-not-allowed"}`}
                 disabled={!done}
               >
                 {done
                   ? <Check className="w-3 h-3 text-emerald-400" />
-                  : <Icon  className="w-3 h-3" />
+                  : <Icon className="w-3 h-3" />
                 }
                 {s.label}
               </button>
@@ -313,6 +332,13 @@ export default function AttendanceWizard({ onComplete, onClose }) {
 
               <div className="space-y-2">
                 {loading && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-violet-400" /></div>}
+                {!loading && sections.length === 0 && (
+                  <div className="text-center py-8 text-white/30 text-sm">
+                    {isStaffOnly
+                      ? "No sections assigned to you in this class. Ask an admin to assign you."
+                      : "No sections in this class."}
+                  </div>
+                )}
                 {!loading && sections.map(sec => (
                   <button key={sec.id}
                     onClick={() => { setSelSection(sec); setStep(3); }}
@@ -364,9 +390,9 @@ export default function AttendanceWizard({ onComplete, onClose }) {
                 <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                   {students.map((s, i) => {
                     const currentStatus = attendance[s.user_id];
-                    const alreadyMarked = s.attendance?.marked;
+                    const alreadyMarked = s.attendance?.marked === true;
                     return (
-                      <motion.div key={s.user_id}
+                      <motion.div key={s.student_id || s.user_id || i}
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.02 }}

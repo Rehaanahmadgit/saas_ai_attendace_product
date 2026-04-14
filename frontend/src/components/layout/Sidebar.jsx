@@ -14,13 +14,13 @@ import { Badge } from "@/components/ui/badge";
 const NAV_ITEMS = [
   { path: "/",             label: "Dashboard",    icon: LayoutDashboard, always: true },
   { path: "/attendance",   label: "Attendance",   icon: ClipboardCheck,  always: true },
-  { path: "/analytics",    label: "Analytics",    icon: BarChart3,       resource: "analytics" },
-  { path: "/insights",     label: "AI Insights",  icon: BrainCircuit,    resource: "insights", isPremium: true },
-  { path: "/users",        label: "Users",        icon: Users,           resource: "users" },
-  { path: "/students",     label: "Students",     icon: GraduationCap,   resource: "students" },
+  { path: "/analytics",    label: "Analytics",    icon: BarChart3,       minRole: "staff", resource: "analytics" },
+  { path: "/insights",     label: "AI Insights",  icon: BrainCircuit,    minRole: "admin", isPremium: true },
+  { path: "/users",        label: "Users",        icon: Users,           minRole: "admin" },
+  { path: "/students",     label: "Students",     icon: GraduationCap,   minRole: "staff" },
   { path: "/organization", label: "Organization", icon: Building2,       resource: "departments" },
   { path: "/permissions",  label: "Permissions",  icon: Shield,          resource: "role_permissions" },
-  { path: "/logs",         label: "Activity Logs",icon: ScrollText,      resource: "role_permissions" },
+  { path: "/logs",         label: "Activity Logs",icon: ScrollText,      minRole: "admin" },
   { path: "/settings",     label: "Settings",     icon: Settings,        always: true },
 ];
 
@@ -44,7 +44,7 @@ function NavItem({ item }) {
 }
 
 export default function Sidebar({ mobileOpen, onClose }) {
-  const { user, logout } = useAuth();
+  const { user, logout, hasMinRole } = useAuth();
   const { isDark } = useTheme();
   const { can } = usePermission();
   const navigate = useNavigate();
@@ -58,7 +58,14 @@ export default function Sidebar({ mobileOpen, onClose }) {
   const visibleNav = NAV_ITEMS.map(item => {
     if (item.path === "/organization") return { ...item, label: labels.department || "Organization" };
     return item;
-  }).filter(item => item.always || can(item.resource, "can_view"));
+  }).filter(item => {
+    if (item.always) return true;
+    // minRole is a hard gate — checked first
+    if (item.minRole && !hasMinRole(item.minRole)) return false;
+    // resource is a fine-grained permission — checked after role passes
+    if (item.resource) return can(item.resource, "can_view");
+    return true;
+  });
 
   function getInitials(name = "") {
     return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase() || "?";

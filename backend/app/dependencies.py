@@ -95,7 +95,7 @@ DEFAULT_PERMISSIONS: dict[str, dict[str, dict]] = {
         "super_admin": {"can_view": True, "can_create": True, "can_edit": True, "can_delete": True, "scope": "org"},
         "admin":       {"can_view": True, "can_create": True, "can_edit": True, "can_delete": True, "scope": "org"},
         "staff":       {"can_view": True, "can_create": True, "can_edit": True, "can_delete": False,"scope": "section"},
-        "user":        {"can_view": True, "can_create": False,"can_edit": False,"can_delete": False,"scope": "self"},
+        "user":        {"can_view": True, "can_create": True,"can_edit": False,"can_delete": False,"scope": "self"},
     },
     "students": {
         "super_admin": {"can_view": True, "can_create": True, "can_edit": True, "can_delete": True, "scope": "org"},

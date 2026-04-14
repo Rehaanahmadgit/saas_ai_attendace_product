@@ -16,6 +16,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models import OrgUser, AttendanceRecord, ActivityLog, Student, Section, SectionTeacher
@@ -283,7 +284,15 @@ async def bulk_mark_attendance(
         resource="attendance",
         details={"section_id": data.section_id, "date": str(mark_date), "marked": marked},
     ))
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Attendance already recorded for one or more students on this date. "
+                   "Refresh student list and try again.",
+        )
     return BulkAttendanceOut(marked=marked, skipped=skipped, errors=errors)
 
 
@@ -388,7 +397,7 @@ async def get_section_students_for_attendance(
     section_id: int,
     date_param:  Optional[date] = Query(None, alias="date"),
     subject_id:  Optional[int]  = Query(None),
-    current_user: OrgUser = AnyRole,
+    current_user: OrgUser = Depends(require_permission("attendance", "can_view")),
     db: AsyncSession = Depends(get_db),
 ):
     """

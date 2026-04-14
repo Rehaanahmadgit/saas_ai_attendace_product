@@ -269,8 +269,9 @@ async def _get_class_or_404(class_id: int, org_id: int, db: AsyncSession) -> Cla
 
 @router.get("/sections", response_model=List[SectionDetail])
 async def list_sections(
-    class_id:   Optional[int]  = Query(None),
-    is_active:  Optional[bool] = Query(True),
+    class_id:    Optional[int]  = Query(None),
+    is_active:   Optional[bool] = Query(True),
+    my_sections: bool           = Query(False),  # staff: return only assigned sections
     current_user: OrgUser = AnyRole,
     db: AsyncSession = Depends(get_db),
 ):
@@ -279,6 +280,17 @@ async def list_sections(
         stmt = stmt.where(Section.class_id == class_id)
     if is_active is not None:
         stmt = stmt.where(Section.is_active == is_active)
+
+    # When my_sections=True and the user is staff, restrict to sections they teach
+    if my_sections and _role_str(current_user) == "staff":
+        from sqlalchemy import or_
+        assigned_q  = select(SectionTeacher.section_id).where(SectionTeacher.user_id == current_user.id)
+        primary_q   = select(Section.id).where(
+            Section.primary_teacher_id == current_user.id,
+            Section.organization_id    == current_user.organization_id,
+        )
+        stmt = stmt.where(or_(Section.id.in_(assigned_q), Section.id.in_(primary_q)))
+
     stmt = stmt.order_by(Section.name)
     rows = (await db.execute(stmt)).scalars().all()
 

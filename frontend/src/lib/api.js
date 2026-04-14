@@ -86,10 +86,10 @@ export const analyticsApi = {
 };
 
 export const attendanceApi = {
-  mark:         (d)  => http.post("/attendance/mark", d),
-  list:         (p)  => http.get("/attendance/", { params: p }),
-  today:        (p)  => http.get("/attendance/today/summary", { params: p }),
-  bulkMark:     (d)  => http.post("/attendance/bulk-mark", d),
+  mark:            (d)           => http.post("/attendance/mark", d),
+  list:            (p)           => http.get("/attendance", { params: p }),
+  today:           (p)           => http.get("/attendance/today/summary", { params: p }),
+  bulkMark:        (d)           => http.post("/attendance/bulk-mark", d),
   sectionStudents: (sectionId, p) => http.get(`/attendance/section/${sectionId}/students`, { params: p }),
 };
 

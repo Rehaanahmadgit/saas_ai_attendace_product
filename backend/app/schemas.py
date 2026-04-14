@@ -3,6 +3,10 @@ from typing import Optional, List, Any, Dict
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Literal
 
+# Pydantic v2: field names shadow type names in get_type_hints().
+# Any model with a field called `date` must use this alias for the annotation.
+_Date = date
+
 VALID_ROLES = Literal["super_admin", "admin", "staff", "user"]
 
 
@@ -197,7 +201,7 @@ class PermissionMatrixResponse(BaseModel):
 
 class AttendanceMark(BaseModel):
     user_id: Optional[int] = None
-    date: Optional[date] = None
+    date: Optional[_Date] = None
     status: Optional[str] = None
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
@@ -220,7 +224,7 @@ class AttendanceOut(BaseModel):
     user_name: str
     user_email: str
     department: Optional[str]
-    date: date
+    date: _Date
     status: str
     check_in: Optional[datetime]
     check_out: Optional[datetime]
@@ -252,7 +256,7 @@ class BulkAttendanceItem(BaseModel):
 
 class BulkAttendanceMark(BaseModel):
     section_id: int
-    date: Optional[date] = None
+    date: Optional[_Date] = None
     subject_id: Optional[int] = None
     period_no: Optional[int] = None
     records: List[BulkAttendanceItem]
