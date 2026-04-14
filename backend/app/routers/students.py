@@ -10,7 +10,7 @@ from sqlalchemy import select, and_
 from app.database import get_db
 from app.models import OrgUser, Student, Section, Class, Department
 from app.schemas import StudentCreate, StudentUpdate, StudentOut, StudentListItem
-from app.dependencies import get_current_user, require_permission, AnyRole
+from app.dependencies import get_current_user, require_permission, AnyRole, _role_str
 from app import auth as auth_utils
 
 router = APIRouter(tags=["students"])
@@ -47,7 +47,7 @@ async def list_students(
     )
 
     # Role-based scoping
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
+    user_role = _role_str(current_user)
     if user_role == "user":
         stmt = stmt.where(Student.user_id == current_user.id)
     else:
@@ -175,7 +175,7 @@ async def get_student(
     student, org_user = row
 
     # Students can only view themselves
-    user_role = current_user.role.value if hasattr(current_user.role, 'value') else current_user.role
+    user_role = _role_str(current_user)
     if user_role == "user" and student.user_id != current_user.id:
         raise HTTPException(403, "You can only view your own profile")
 

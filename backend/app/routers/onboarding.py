@@ -31,13 +31,10 @@ from app.models import (
     OnboardingStatus, Organization, OrgUser,
     Department, Class, Section,
 )
-from app.dependencies import get_current_user, require_min_role
+from app.dependencies import AdminOrAbove, AnyRole
 from app import auth as auth_utils
 
 router = APIRouter(tags=["onboarding"])
-
-AdminOrAbove = Depends(require_min_role("admin"))
-AnyRole      = Depends(get_current_user)
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────

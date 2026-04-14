@@ -26,19 +26,12 @@ from app.schemas import (
     PermissionMatrixResponse, PermissionMatrixRow,
 )
 from app.dependencies import (
-    get_current_user, get_role_hierarchy,
+    AnyRole, get_role_hierarchy, _role_str,
     get_assignable_roles, DEFAULT_PERMISSIONS, DEFAULT_ROLE_HIERARCHY, ALL_RESOURCES,
 )
 from app.database import get_db
 
 router = APIRouter(tags=["permissions"])
-
-AnyRole = Depends(get_current_user)
-
-
-def _role_str(user: OrgUser) -> str:
-    r = user.role
-    return r.value if hasattr(r, "value") else str(r)
 
 
 def _require_admin(current_user: OrgUser):

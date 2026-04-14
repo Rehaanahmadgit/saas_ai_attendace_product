@@ -19,15 +19,12 @@ from app.database import get_db
 from app.models import OrgUser, OnboardingStatus
 from app.schemas import UserCreate, UserUpdate, UserOut
 from app.dependencies import (
-    get_current_user, require_min_role, assert_can_assign_role,
+    StaffOrAbove, AdminOrAbove, assert_can_assign_role,
     get_role_hierarchy, _role_str,
 )
 from app import auth as auth_utils
 
 router = APIRouter(tags=["users"])
-
-StaffOrAbove = Depends(require_min_role("staff"))
-AdminOrAbove = Depends(require_min_role("admin"))
 
 
 @router.get("", response_model=List[UserOut])

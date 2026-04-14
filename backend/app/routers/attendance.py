@@ -23,7 +23,7 @@ from app.schemas import (
     AttendanceMark, AttendanceUpdate, AttendanceOut, TodaySummary,
     BulkAttendanceMark, BulkAttendanceOut,
 )
-from app.dependencies import enforce_scope_filter, get_current_user, require_permission, AnyRole
+from app.dependencies import enforce_scope_filter, get_current_user, require_permission, AnyRole, _role_str
 
 router = APIRouter(tags=["attendance"])
 
@@ -31,11 +31,6 @@ LATE_THRESHOLD = time(9, 30)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _role_str(user: OrgUser) -> str:
-    r = user.role
-    return r.value if hasattr(r, "value") else str(r)
-
 
 def _compute_duration(check_in, check_out) -> Optional[float]:
     if check_in and check_out:

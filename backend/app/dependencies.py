@@ -51,25 +51,35 @@ DEFAULT_ROLE_HIERARCHY = {
 
 
 async def get_role_hierarchy(organization_id: int, db: AsyncSession) -> dict[str, int]:
+    """
+    Returns role→level map. Always merges with DEFAULT_ROLE_HIERARCHY so built-in
+    roles (admin, staff, etc.) are never missing even if the org has custom roles.
+    Custom DB roles take priority over defaults when names clash.
+    """
     rows = await db.execute(select(Role).where(Role.organization_id == organization_id))
     roles = rows.scalars().all()
     if not roles:
         return DEFAULT_ROLE_HIERARCHY
-    return {r.name: r.level for r in roles}
+    # Merge: defaults as base, custom DB roles override/extend
+    merged = {**DEFAULT_ROLE_HIERARCHY}
+    for r in roles:
+        merged[r.name] = r.level
+    return merged
 
 
 async def get_assignable_roles(current_user: OrgUser, db: AsyncSession) -> list[str]:
     role_hierarchy = await get_role_hierarchy(current_user.organization_id, db)
-    current_level = role_hierarchy.get(current_user.role, 0)
+    role = _role_str(current_user)
+    current_level = role_hierarchy.get(role, 0)
     assignable = [name for name, lvl in role_hierarchy.items() if lvl < current_level]
-    if current_user.role == "super_admin" and "admin" not in assignable:
+    if role == "super_admin" and "admin" not in assignable:
         assignable.append("admin")
     return sorted(set(assignable), key=lambda r: role_hierarchy.get(r, 0), reverse=True)
 
 
 async def assert_can_assign_role(current_user: OrgUser, target_role: str, db: AsyncSession):
     role_hierarchy = await get_role_hierarchy(current_user.organization_id, db)
-    requester_level = role_hierarchy.get(current_user.role, 0)
+    requester_level = role_hierarchy.get(_role_str(current_user), 0)
     target_level = role_hierarchy.get(target_role, 0)
     if target_level >= requester_level:
         raise HTTPException(
@@ -187,7 +197,7 @@ async def get_current_user(
 
 def require_roles(*roles: str):
     async def checker(current_user: OrgUser = Depends(get_current_user)):
-        if current_user.role not in roles:
+        if _role_str(current_user) not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access restricted to: {', '.join(roles)}",
@@ -201,13 +211,17 @@ def require_min_role(min_role: str):
         current_user: OrgUser = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
     ):
+        role = _role_str(current_user)
+        # Fast path: super_admin bypasses all hierarchy checks
+        if role == "super_admin":
+            return current_user
         role_hierarchy = await get_role_hierarchy(current_user.organization_id, db)
-        user_level = role_hierarchy.get(current_user.role, 0)
+        user_level = role_hierarchy.get(role, 0)
         required_level = role_hierarchy.get(min_role, 99)
         if user_level < required_level:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Requires at least '{min_role}' role",
+                detail=f"Access denied — requires '{min_role}' or above (your role: '{role}')",
             )
         return current_user
     return checker
@@ -224,11 +238,16 @@ def require_permission(resource: str, action: str = "can_view"):
         current_user: OrgUser = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
     ):
+        role = _role_str(current_user)
+        # Fast path: super_admin has all permissions
+        if role == "super_admin":
+            return current_user
+
         # 1. Check custom DB permissions for this org+role+resource
         custom = await db.scalar(
             select(RolePermission).where(
                 RolePermission.organization_id == current_user.organization_id,
-                RolePermission.role == current_user.role,
+                RolePermission.role == role,
                 RolePermission.resource == resource,
             )
         )
@@ -237,14 +256,13 @@ def require_permission(resource: str, action: str = "can_view"):
             allowed = getattr(custom, action, False)
         else:
             # Fall back to defaults
-            res_defaults = DEFAULT_PERMISSIONS.get(resource, {})
-            role_defaults = res_defaults.get(current_user.role, {})
+            role_defaults = DEFAULT_PERMISSIONS.get(resource, {}).get(role, {})
             allowed = role_defaults.get(action, False)
 
         if not allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"You don't have '{action}' permission on '{resource}'",
+                detail=f"Access denied — role '{role}' lacks '{action}' on '{resource}'",
             )
         return current_user
     return checker
@@ -259,14 +277,14 @@ async def get_permission_scope(
     custom = await db.scalar(
         select(RolePermission).where(
             RolePermission.organization_id == current_user.organization_id,
-            RolePermission.role == current_user.role,
+            RolePermission.role == _role_str(current_user),
             RolePermission.resource == resource,
         )
     )
     if custom:
         return custom.scope
     res_defaults = DEFAULT_PERMISSIONS.get(resource, {})
-    role_defaults = res_defaults.get(current_user.role, {})
+    role_defaults = res_defaults.get(_role_str(current_user), {})
     return role_defaults.get("scope", "self")
 
 

@@ -16,7 +16,13 @@ export function AuthProvider({ children }) {
         permissionsApi.me(),
         permissionsApi.roles(),
       ]);
-      setPerms({ ...permRes.data, role_hierarchy: rolesRes.data });
+      // rolesRes.data is { roles: [{name, level, ...}], is_default: bool }
+      // We need a flat { roleName: level } map for hasMinRole to work
+      const rawRoles = rolesRes.data?.roles ?? [];
+      const roleHierarchyMap = rawRoles.length
+        ? Object.fromEntries(rawRoles.map(r => [r.name, r.level]))
+        : { super_admin: 4, admin: 3, staff: 2, user: 1 };
+      setPerms({ ...permRes.data, role_hierarchy: roleHierarchyMap });
     } catch {
       setPerms(null);
     }

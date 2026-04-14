@@ -12,12 +12,9 @@ from sqlalchemy import select, func, case, and_
 from app.database import get_db
 from app.models import OrgUser, AttendanceRecord, AIInsight
 from app.schemas import KPIResponse, TrendResponse, TrendPoint, DepartmentStat, UserPerformance
-from app.dependencies import get_current_user, require_min_role
+from app.dependencies import StaffOrAbove, AnyRole
 
 router = APIRouter(tags=["analytics"])
-
-StaffOrAbove = Depends(require_min_role("staff"))
-AnyRole = Depends(get_current_user)
 
 PRESENT_STATUSES = ("present", "late")
 

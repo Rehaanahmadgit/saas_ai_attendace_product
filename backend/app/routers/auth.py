@@ -26,16 +26,12 @@ from slowapi.util import get_remote_address
 from app.database import get_db
 from app.models import OrgUser, Organization, ActivityLog, OnboardingStatus
 from app.schemas import LoginRequest, RegisterRequest, TokenResponse, AuthUserOut, RefreshRequest
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, _role_str
 from app import auth as auth_utils
 
 router = APIRouter(tags=["auth"])
 logger = logging.getLogger("auth")
 limiter = Limiter(key_func=get_remote_address)
-
-
-def _role_str(user: OrgUser) -> str:
-    return user.role.value if hasattr(user.role, "value") else str(user.role)
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
@@ -219,8 +215,7 @@ async def update_org_settings(
     db: AsyncSession = Depends(get_db),
 ):
     """Merges new settings and updates org_type. admin+ only."""
-    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role_str not in ("admin", "super_admin"):
+    if _role_str(current_user) not in ("admin", "super_admin"):
         raise HTTPException(403, "Only admins can update org settings")
 
     org = await db.scalar(select(Organization).where(Organization.id == current_user.organization_id))

@@ -20,12 +20,9 @@ from sqlalchemy import select, func, case, delete, and_, desc
 from app.database import get_db
 from app.models import OrgUser, AttendanceRecord, AIInsight
 from app.schemas import InsightOut, InsightsResponse
-from app.dependencies import get_current_user, require_min_role
+from app.dependencies import AdminOrAbove, AnyRole
 
 router = APIRouter(tags=["insights"])
-
-AdminOrAbove = Depends(require_min_role("admin"))
-AnyRole = Depends(get_current_user)
 
 
 # ── Rule-based insight engine ─────────────────────────────────────────────────

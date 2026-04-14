@@ -26,14 +26,9 @@ from app.schemas import (
     SubjectCreate, SubjectUpdate, SubjectOut,
     SectionTeacherAssign, SectionTeacherOut,
 )
-from app.dependencies import get_current_user, require_min_role, AnyRole, AdminOrAbove
+from app.dependencies import get_current_user, require_min_role, AnyRole, AdminOrAbove, _role_str
 
 router = APIRouter(tags=["structure"])
-
-
-def _role_str(user: OrgUser) -> str:
-    r = user.role
-    return r.value if hasattr(r, "value") else str(r)
 
 
 def _require_admin(current_user: OrgUser):
